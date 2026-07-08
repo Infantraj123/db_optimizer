@@ -1,0 +1,46 @@
+{
+  "name": "dbopt",
+  "version": "0.2.0",
+  "description": "Self-optimizing database engine: watches real query traffic, verifies missing indexes before creating them, drops unused ones, with a live dashboard and schema topology explorer. PostgreSQL, MySQL 8, SQL Server.",
+  "license": "MIT",
+  "author": "Evvo Technology <dev@evvotechnology.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Infantraj123/db_optimizer.git"
+  },
+  "keywords": [
+    "database",
+    "index",
+    "optimizer",
+    "postgres",
+    "mysql",
+    "sqlserver",
+    "performance",
+    "autonomous"
+  ],
+  "main": "src/index.js",
+  "bin": {
+    "dbopt": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    ".env.example"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node bin/cli.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "fast-xml-parser": "^4.5.0",
+    "mssql": "^11.0.1",
+    "mysql2": "^3.11.3",
+    "pg": "^8.13.0"
+  }
+}

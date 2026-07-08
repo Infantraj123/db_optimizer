@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DBOpt — Dashboard</title>
+<style>
+  :root {
+    --page:          #f9f9f7;
+    --surface-1:     #fcfcfb;
+    --text-primary:  #0b0b0b;
+    --text-secondary:#52514e;
+    --text-muted:    #898781;
+    --grid:          #e1e0d9;
+    --baseline:      #c3c2b7;
+    --border:        rgba(11,11,11,0.10);
+    --series-1:      #2a78d6;  /* blue: slow queries */
+    --series-2:      #1baf7a;  /* aqua: table sizes  */
+    --status-good:      #0ca30c;
+    --status-critical:  #d03b3b;
+    --status-warning:   #fab219;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page:          #0d0d0d;
+      --surface-1:     #1a1a19;
+      --text-primary:  #ffffff;
+      --text-secondary:#c3c2b7;
+      --text-muted:    #898781;
+      --grid:          #2c2c2a;
+      --baseline:      #383835;
+      --border:        rgba(255,255,255,0.10);
+      --series-1:      #3987e5;
+      --series-2:      #199e70;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 20px; font-weight: 600; }
+  .chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .chip {
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 3px 12px; font-size: 12px; color: var(--text-secondary);
+    background: var(--surface-1); display: inline-flex; gap: 6px; align-items: center;
+  }
+  .chip b { color: var(--text-primary); font-weight: 600; }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+  #setup-banner {
+    display: none; border: 1px solid var(--border); border-left: 4px solid var(--status-warning);
+    background: var(--surface-1); border-radius: 10px; padding: 12px 16px;
+    margin-bottom: 20px; font-size: 13px;
+  }
+  #setup-banner .t { font-weight: 600; margin-bottom: 4px; }
+  #setup-banner li { margin-left: 18px; color: var(--text-secondary); }
+  #last-updated { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+  #auto-status { font-size: 12px; color: var(--text-secondary); }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .tile .label { color: var(--text-secondary); font-size: 12px; margin-bottom: 6px; }
+  .tile .value { font-size: 30px; font-weight: 600; line-height: 1.1; }
+  .tile .sub { color: var(--text-muted); font-size: 12px; margin-top: 4px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  @media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .card .card-sub { color: var(--text-muted); font-size: 12px; margin-bottom: 14px; }
+  .info {
+    cursor: help; color: var(--text-muted); font-size: 10px; font-weight: 600;
+    border: 1px solid var(--baseline); border-radius: 50%;
+    width: 15px; height: 15px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-left: 6px; vertical-align: 2px; user-select: none;
+  }
+  .info:hover, .info:focus-visible { color: var(--text-primary); border-color: var(--text-muted); outline: none; }
+
+  /* Horizontal bar rows */
+  .bar-row { display: grid; grid-template-columns: 180px 1fr; gap: 10px; align-items: center; padding: 5px 0; }
+  .bar-row .cat {
+    color: var(--text-secondary); font-size: 12px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right;
+  }
+  .bar-track { position: relative; height: 22px; display: flex; align-items: center; }
+  .bar {
+    height: 16px; max-height: 16px;
+    border-radius: 0 4px 4px 0;   /* rounded data-end, square at baseline */
+    min-width: 2px;
+    transition: opacity .15s;
+  }
+  .bar-track .val { margin-left: 8px; font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+  .bar-track:hover .bar, .bar-track:focus-visible .bar { opacity: .8; }
+  .bar-track { outline: none; }
+  .axis-note { border-top: 1px solid var(--grid); margin-top: 10px; padding-top: 6px; color: var(--text-muted); font-size: 11px; }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed; z-index: 10; pointer-events: none; display: none;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; max-width: 420px; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+    font-size: 12px;
+  }
+  #tooltip .t-val { font-weight: 600; font-size: 13px; }
+  #tooltip .t-label { color: var(--text-secondary); margin-top: 2px; word-break: break-word; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--text-muted); font-weight: 500; font-size: 12px; padding: 6px 10px; border-bottom: 1px solid var(--baseline); }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  .table-scroll { overflow-x: auto; }
+  code { font-family: ui-monospace, monospace; font-size: 12px; color: var(--text-secondary); word-break: break-all; }
+  td.query-cell { min-width: 380px; }
+  td.query-cell code { display: block; white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
+  td.num { white-space: nowrap; }
+  .status { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .empty { color: var(--text-muted); padding: 12px 0; font-size: 13px; }
+  .refreshing { opacity: .55; transition: opacity .2s; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DBOpt — Dashboard</h1>
+  <select id="db-select" title="Switch database" style="display:none; font-size:12px; color:var(--text-secondary);
+     border:1px solid var(--border); border-radius:999px; padding:3px 10px; background:var(--surface-1);"></select>
+  <span id="auto-status">…</span>
+  <a id="topo-link" href="/topology" style="font-size:12px; color:var(--text-secondary); border:1px solid var(--border);
+     border-radius:999px; padding:3px 12px; text-decoration:none; background:var(--surface-1);">🕸 Topology</a>
+  <span id="last-updated"></span>
+</header>
+
+<div class="chip-row" id="env-chips"></div>
+
+<div id="setup-banner"><div class="t">Server setup needed</div><ul id="setup-list"></ul></div>
+
+<div class="kpi-row" id="kpis"></div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>Slowest queries <span class="info" tabindex="0" data-tip="Queries ranked by average time per single execution. These are the ones a user feels as 'slow'. Hover a bar to read the full query text and call count — if one of these does a full table scan, the engine will try to fix it with an index.">i</span></h2>
+    <div class="card-sub">Mean execution time per call</div>
+    <div id="slow-queries-chart"></div>
+  </div>
+  <div class="card">
+    <h2>Biggest tables <span class="info" tabindex="0" data-tip="Tables by total size on disk (data + indexes). Big tables are where a missing index hurts most and where the engine focuses. Hover a bar for row counts.">i</span></h2>
+    <div class="card-sub">Total relation size (table + indexes)</div>
+    <div id="tables-chart"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Heaviest queries by total load <span class="info" tabindex="0" data-tip="Different from 'slowest': a 5 ms query called a million times costs more than a 2-second query called once. This ranks by accumulated total time — the queries that consume most of your database's capacity overall.">i</span></h2>
+  <div class="card-sub">calls × time — where the database actually spends its life</div>
+  <div class="table-scroll"><table id="load-table"></table></div>
+</div>
+
+<div class="card">
+  <h2>Unused indexes right now <span class="info" tabindex="0" data-tip="Indexes that have never been read since the database server last started. They cost storage and slow down every write. Safe candidates only — primary keys, unique keys, foreign-key and FULLTEXT indexes are never listed. With auto-drop on, these get removed in the next cycle; otherwise apply them one by one from the recommendations API.">i</span></h2>
+  <div class="card-sub">Zero scans since server start · PK, unique, FK-required and FULLTEXT indexes excluded</div>
+  <div class="table-scroll"><table id="unused-table"></table></div>
+</div>
+
+<div class="card">
+  <h2>Actions taken by the engine <span class="info" tabindex="0" data-tip="The audit log: every index the engine created or dropped by itself, with the exact SQL it ran and the measured impact. Every action is reversible — POST /recommendations/{id}/rollback undoes it using the stored rollback SQL.">i</span></h2>
+  <div class="card-sub">Indexes created and dropped autonomously, newest first</div>
+  <div class="table-scroll"><table id="actions-table"></table></div>
+</div>
+
+<div class="card">
+  <h2>Recommendations <span class="info" tabindex="0" data-tip="Everything the analyzer has ever found, in every state: pending (waiting), applied (done), rejected (dismissed), failed, skipped (cooldown), rolled back. Pending items show the improvement the index was verified to deliver before anything is created.">i</span></h2>
+  <div class="card-sub">Everything the analyzer has found (all statuses)</div>
+  <div class="table-scroll"><table id="recs-table"></table></div>
+</div>
+
+<div id="tooltip" role="tooltip"><div class="t-val"></div><div class="t-label"></div></div>
+
+<script>
+"use strict";
+const $ = (sel) => document.querySelector(sel);
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+// ---------- tooltip (per-mark hover; every value is also directly labeled) ----------
+const tip = $("#tooltip");
+function bindTooltip(el, value, label) {
+  const show = (e) => {
+    tip.querySelector(".t-val").textContent = value;
+    tip.querySelector(".t-label").textContent = label;
+    tip.style.display = "block";
+    const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+    tip.style.left = x + "px";
+    tip.style.top = (e.clientY + 14) + "px";
+  };
+  el.addEventListener("pointermove", show);
+  el.addEventListener("pointerleave", () => tip.style.display = "none");
+  el.addEventListener("focus", () => {
+    tip.querySelector(".t-val").textContent = value;
+    tip.querySelector(".t-label").textContent = label;
+    tip.style.display = "block";
+    const r = el.getBoundingClientRect();
+    tip.style.left = r.left + "px";
+    tip.style.top = (r.bottom + 6) + "px";
+  });
+  el.addEventListener("blur", () => tip.style.display = "none");
+}
+
+// ---------- horizontal bar list (single series -> one hue, no legend) ----------
+function renderBars(container, rows, colorVar) {
+  container.replaceChildren();
+  if (!rows.length) {
+    const d = document.createElement("div");
+    d.className = "empty";
+    d.textContent = "No data yet.";
+    container.appendChild(d);
+    return;
+  }
+  const max = Math.max(...rows.map(r => r.value)) || 1;
+  for (const r of rows) {
+    const row = document.createElement("div");
+    row.className = "bar-row";
+    const cat = document.createElement("div");
+    cat.className = "cat";
+    cat.textContent = r.category;
+    const track = document.createElement("div");
+    track.className = "bar-track";
+    track.tabIndex = 0;
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    bar.style.width = Math.max(1.5, (r.value / max) * 100 * 0.72) + "%";
+    bar.style.background = cssVar(colorVar);
+    const val = document.createElement("span");
+    val.className = "val";
+    val.textContent = r.valueLabel;      // direct label at the bar tip
+    track.append(bar, val);
+    bindTooltip(track, r.valueLabel, r.tooltip || r.category);
+    row.append(cat, track);
+    container.appendChild(row);
+  }
+}
+
+// ---------- formatting ----------
+const fmtMs = (ms) => ms >= 1000 ? (ms / 1000).toFixed(2) + " s" : ms.toFixed(1) + " ms";
+function fmtDur(ms) {   // for accumulated totals, which can reach minutes
+  if (ms >= 60000) return (ms / 60000).toFixed(1) + " min";
+  return fmtMs(ms);
+}
+function fmtBytes(b) {
+  if (b >= 1 << 30) return (b / (1 << 30)).toFixed(1) + " GB";
+  if (b >= 1 << 20) return (b / (1 << 20)).toFixed(1) + " MB";
+  if (b >= 1 << 10) return (b / (1 << 10)).toFixed(0) + " kB";
+  return b + " B";
+}
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleString() : "—";
+
+// ---------- status chip: icon + label, never color alone ----------
+const STATUS = {
+  applied:     { color: "--status-good",     icon: "✓" },
+  failed:      { color: "--status-critical", icon: "✗" },
+  rolled_back: { color: "--status-warning",  icon: "↺" },
+  pending:     { color: "--text-muted",      icon: "•" },
+  skipped:     { color: "--text-muted",      icon: "–" },
+  rejected:    { color: "--text-muted",      icon: "–" },
+  acknowledged:{ color: "--text-muted",      icon: "•" },
+};
+function statusChip(status) {
+  const s = STATUS[status] || STATUS.pending;
+  const span = document.createElement("span");
+  span.className = "status";
+  const dot = document.createElement("span");
+  dot.className = "dot";
+  dot.style.background = cssVar(s.color);
+  const txt = document.createElement("span");
+  txt.textContent = s.icon + " " + status;
+  span.append(dot, txt);
+  return span;
+}
+
+function buildTable(tableEl, headers, rows, buildCells) {
+  tableEl.replaceChildren();
+  const thead = document.createElement("thead");
+  const trh = document.createElement("tr");
+  for (const h of headers) {
+    const th = document.createElement("th");
+    if (h.startsWith(">")) { th.className = "num"; th.textContent = h.slice(1); }
+    else th.textContent = h;
+    trh.appendChild(th);
+  }
+  thead.appendChild(trh);
+  const tbody = document.createElement("tbody");
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = headers.length;
+    td.className = "empty";
+    td.textContent = "Nothing here yet.";
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    for (const cell of buildCells(r)) tr.appendChild(cell);
+    tbody.appendChild(tr);
+  }
+  tableEl.append(thead, tbody);
+}
+function td(content, cls) {
+  const el = document.createElement("td");
+  if (cls) el.className = cls;
+  if (content instanceof Node) el.appendChild(content);
+  else el.textContent = content ?? "—";
+  return el;
+}
+function codeTd(text) {
+  const el = document.createElement("td");
+  const c = document.createElement("code");
+  c.textContent = text || "—";
+  el.appendChild(c);
+  return el;
+}
+
+// ---------- tiles ----------
+function tile(label, value, sub, info) {
+  const t = document.createElement("div");
+  t.className = "tile";
+  const l = document.createElement("div"); l.className = "label"; l.textContent = label;
+  if (info) {
+    const i = document.createElement("span");
+    i.className = "info"; i.textContent = "i"; i.tabIndex = 0;
+    bindTooltip(i, label, info);
+    l.appendChild(i);
+  }
+  const v = document.createElement("div"); v.className = "value"; v.textContent = value;
+  t.append(l, v);
+  if (sub) { const s = document.createElement("div"); s.className = "sub"; s.textContent = sub; t.appendChild(s); }
+  return t;
+}
+
+// Hover help on the static cards: the ⓘ next to each title explains what the
+// card shows and how to use it.
+for (const el of document.querySelectorAll(".info[data-tip]")) {
+  bindTooltip(el, el.closest(".card").querySelector("h2").childNodes[0].textContent.trim(), el.dataset.tip);
+}
+
+// ---------- data loading ----------
+// Every API call is scoped to the database picked in the header selector
+// (?db=<name>); without it the server uses its first configured target.
+const DB = new URLSearchParams(location.search).get("db");
+const withDb = (url) => DB ? url + (url.includes("?") ? "&" : "?") + "db=" + encodeURIComponent(DB) : url;
+async function getJSON(url) {
+  const res = await fetch(withDb(url));
+  if (!res.ok) throw new Error(url + " -> HTTP " + res.status);
+  return res.json();
+}
+
+async function initDbSelect() {
+  try {
+    const ts = await getJSON("/targets");
+    $("#topo-link").href = withDb("/topology");
+    if (ts.length < 2) return;
+    const sel = $("#db-select");
+    const current = DB || ts[0].name;
+    for (const t of ts) {
+      const o = document.createElement("option");
+      o.value = t.name;
+      o.textContent = t.name + " · " + ({mysql:"MySQL",mssql:"SQL Server",postgres:"PostgreSQL"}[t.engine] || t.engine);
+      if (t.name === current) o.selected = true;
+      sel.append(o);
+    }
+    sel.style.display = "";
+    sel.onchange = () => location.search = "?db=" + encodeURIComponent(sel.value);
+  } catch (e) { /* selector is optional */ }
+}
+
+async function refresh() {
+  document.body.classList.add("refreshing"); // hold previous render, dimmed — no skeleton flash
+  try {
+    const [overview, slow, slowAll, growth, actions, recs, health, config, unused] = await Promise.all([
+      getJSON("/analytics/overview"),
+      getJSON("/analytics/queries/top-slow?limit=8"),
+      getJSON("/queries/slow?limit=30"),
+      getJSON("/analytics/tables/top-by-size?limit=8"),
+      getJSON("/analytics/actions?limit=25"),
+      getJSON("/recommendations/"),
+      getJSON("/health"),
+      getJSON("/analytics/config"),
+      getJSON("/tables/unused-indexes"),
+    ]);
+
+    // Environment chips: what is being watched, and how the engine will act
+    const chips = $("#env-chips");
+    const chip = (html) => { const c = document.createElement("span"); c.className = "chip"; c.append(...html); return c; };
+    const dot = (colorVar) => { const d = document.createElement("span"); d.className = "dot"; d.style.background = cssVar(colorVar); return d; };
+    const bold = (t) => { const b = document.createElement("b"); b.textContent = t; return b; };
+    const txt = (t) => document.createTextNode(t);
+    chips.replaceChildren(
+      chip([txt({mysql: "MySQL", mssql: "SQL Server", postgres: "PostgreSQL", oracle: "Oracle", mongodb: "MongoDB"}[config.engine] || config.engine), bold(config.database)]),
+      chip([txt("scans every"), bold(config.scan_interval_minutes + " min")]),
+      chip([dot(config.auto_create_indexes ? "--status-good" : "--text-muted"),
+            txt("auto-create " + (config.auto_create_indexes ? "on" : "off"))]),
+      chip([dot(config.auto_drop_unused_indexes ? "--status-good" : "--text-muted"),
+            txt("auto-drop " + (config.auto_drop_unused_indexes ? "on" : "off"))]),
+      chip([txt("acts above"), bold(config.min_improvement_pct + "% improvement")]),
+    );
+
+    // Setup banner: anything the bootstrap couldn't fix itself
+    const needed = (health.prerequisites && health.prerequisites.actions_needed) || [];
+    const banner = $("#setup-banner");
+    if (needed.length) {
+      const ul = $("#setup-list");
+      ul.replaceChildren();
+      for (const n of needed) { const li = document.createElement("li"); li.textContent = n; ul.appendChild(li); }
+      banner.style.display = "block";
+    } else {
+      banner.style.display = "none";
+    }
+
+    // KPI row
+    const created = actions.filter(a => a.status === "applied" && a.type === "missing_index").length;
+    const dropped = actions.filter(a => a.status === "applied" && a.type === "unused_index").length;
+    const failed  = actions.filter(a => a.status === "failed").length;
+    const kpis = $("#kpis");
+    kpis.replaceChildren(
+      tile("Pending recommendations",
+           overview.pending_missing_index_count + overview.pending_unused_index_count,
+           overview.pending_missing_index_count + " missing · " + overview.pending_unused_index_count + " unused",
+           "Verified findings waiting for action. With autonomous mode on they are executed within one scan cycle; with it off, apply them via POST /recommendations/{id}/apply."),
+      tile("Indexes created", created, "by the engine, automatically",
+           "Missing indexes the engine built on its own after verifying each one would cut the query's cost by at least the configured threshold."),
+      tile("Indexes dropped", dropped, "unused, reclaimed automatically",
+           "Unused indexes the engine removed. The original definition is stored as rollback SQL, so any drop can be undone."),
+      tile("Reclaimable storage", overview.total_wasted_index_storage_mb + " MB", "pending unused indexes",
+           "Disk space held by unused indexes that are detected but not yet dropped. Becomes zero once they are removed."),
+      tile("Failed actions", failed, failed ? "see actions table" : "all clear",
+           "Actions that errored when executed. The error message is stored on the action row; failed items can be retried with POST /recommendations/{id}/apply."),
+    );
+
+    $("#auto-status").textContent =
+      health.db_connection === "ok" ? "target DB connected · autonomous mode" : "target DB unreachable";
+
+    // Charts (single series each -> sequential single hue, direct-labeled)
+    renderBars($("#slow-queries-chart"),
+      slow.map(q => ({
+        category: q.query.replace(/\s+/g, " ").slice(0, 60),
+        value: q.mean_exec_time,
+        valueLabel: fmtMs(q.mean_exec_time),
+        tooltip: q.query.replace(/\s+/g, " ").slice(0, 300) + "  ·  " + q.calls + " calls",
+      })), "--series-1");
+
+    renderBars($("#tables-chart"),
+      growth.map(t => ({
+        category: t.table_name,
+        value: t.total_size_bytes ?? 0,
+        valueLabel: fmtBytes(t.total_size_bytes ?? 0),
+        tooltip: t.table_name + " · " + Number(t.live_rows).toLocaleString() + " live rows · " +
+                 t.seq_scan + " seq scans · " + t.idx_scan + " index scans",
+      })), "--series-2");
+
+    // Heaviest queries by total accumulated time
+    const byLoad = [...slowAll]
+      .sort((a, b) => (b.total_exec_time || 0) - (a.total_exec_time || 0))
+      .slice(0, 8);
+    buildTable($("#load-table"),
+      ["Query", ">Calls", ">Mean", ">Total time"],
+      byLoad,
+      (q) => [
+        (() => { const c = codeTd(q.query.replace(/\s+/g, " ").trim()); c.classList.add("query-cell"); return c; })(),
+        td(Number(q.calls).toLocaleString(), "num"),
+        td(fmtMs(q.mean_exec_time), "num"),
+        td(fmtDur(q.total_exec_time), "num"),
+      ]);
+
+    // Unused indexes live view
+    buildTable($("#unused-table"),
+      ["Table", "Index", ">Size", ">Scans"],
+      unused.slice(0, 12),
+      (u) => [
+        td(u.table),
+        codeTd(u.index),
+        td(u.size_mb + " MB", "num"),
+        td(String(u.scans), "num"),
+      ]);
+
+    // Actions table
+    buildTable($("#actions-table"),
+      ["When", "Action", "Table", "SQL executed", ">Impact", "Status"],
+      actions,
+      (a) => [
+        td(fmtDate(a.applied_at || a.created_at)),
+        td(a.type === "missing_index" ? "Create index" : "Drop index"),
+        td(a.table),
+        codeTd(a.executed_sql || a.error),
+        td(a.improvement_pct != null ? "−" + a.improvement_pct + "% cost"
+           : (a.type === "unused_index" && a.detail ? "+" + (a.detail.size_mb || 0) + " MB freed" : "—"), "num"),
+        td(statusChip(a.status)),
+      ]);
+
+    // Recommendations table
+    buildTable($("#recs-table"),
+      ["Found", "Type", "Table", "Detail", ">Improvement", "Status"],
+      recs,
+      (r) => [
+        td(fmtDate(r.created_at)),
+        td(r.type === "missing_index" ? "Missing index" : "Unused index"),
+        td(r.table),
+        codeTd(r.type === "missing_index"
+          ? "(" + (r.detail.columns || []).join(", ") + ")"
+            + (r.detail.predicate
+               ? " WHERE " + r.detail.predicate.column + " " + r.detail.predicate.op
+                 + (r.detail.predicate.value != null ? " " + r.detail.predicate.value : "")
+               : "")
+            + "  " + (r.detail.reason || "")
+          : r.detail.index_name + "  ·  " + r.detail.size_mb + " MB"),
+        td(r.improvement_pct != null ? r.improvement_pct + " %" : "—", "num"),
+        td(statusChip(r.status)),
+      ]);
+
+    $("#last-updated").textContent = "updated " + new Date().toLocaleTimeString();
+  } catch (e) {
+    $("#auto-status").textContent = "failed to load: " + e.message;
+  } finally {
+    document.body.classList.remove("refreshing");
+  }
+}
+
+initDbSelect();
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>
