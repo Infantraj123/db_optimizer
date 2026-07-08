@@ -1,5 +1,5 @@
 {
-  "name": "dbopt",
+  "name": "dbopt-engine",
   "version": "0.2.0",
   "description": "Self-optimizing database engine: watches real query traffic, verifies missing indexes before creating them, drops unused ones, with a live dashboard and schema topology explorer. PostgreSQL, MySQL 8, SQL Server.",
   "license": "MIT",

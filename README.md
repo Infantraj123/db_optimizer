@@ -1,4 +1,4 @@
-# dbopt
+# dbopt-engine
 
 Self-optimizing database engine for **PostgreSQL**, **MySQL 8** and
 **Microsoft SQL Server** — the Node.js edition. One process can watch a
@@ -15,7 +15,7 @@ schema-topology explorer with animated query flow.
 ## Quick start
 
 ```bash
-npm install -g dbopt
+npm install -g dbopt-engine     # installs the `dbopt` command
 ```
 
 Create a `.env` file in the directory you'll run it from, defining **all** of
@@ -48,9 +48,9 @@ dbopt
 Or per-project:
 
 ```bash
-npm install dbopt
-cp node_modules/dbopt/.env.example .env   # then edit DATABASE_URL etc.
-npx dbopt
+npm install dbopt-engine
+cp node_modules/dbopt-engine/.env.example .env   # then edit DATABASE_URL etc.
+npx dbopt-engine
 ```
 
 If any variable is missing, startup fails with a list of what's not set.

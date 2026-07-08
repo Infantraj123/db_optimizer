@@ -39,7 +39,7 @@ const REQUIRED_VARS = [
       missing.map((n) => `  - ${n}`).join("\n") +
       `\n\nCreate a .env file in the directory you run dbopt from,\n` +
       `defining all of them (copy .env.example from the package for a template):\n` +
-      `  node_modules/dbopt/.env.example`
+      `  node_modules/dbopt-engine/.env.example`
     );
     process.exit(1);
   }
