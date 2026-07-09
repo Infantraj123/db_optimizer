@@ -46,7 +46,7 @@ const REQUIRED_VARS = [
 }
 
 const settings = {
-  httpPort: parseInt(env("PORT", "8000"), 10),
+  httpPort: parseInt(env("PORT", "1305"), 10),
   scanIntervalMinutes: parseInt(env("SCAN_INTERVAL_MINUTES", "15"), 10),
   minRowsForSeqScanFlag: parseInt(env("MIN_ROWS_FOR_SEQ_SCAN_FLAG", "1000"), 10),
   minImprovementPct: parseFloat(env("MIN_IMPROVEMENT_PCT_TO_RECOMMEND", "30")),

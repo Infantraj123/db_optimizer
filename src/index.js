@@ -32,8 +32,28 @@ function createApp() {
   };
   app.get("/dashboard", page("dashboard.html"));
   app.get("/topology", page("topology.html"));
-  app.get("/", (req, res) => res.redirect("/dashboard"));
+  // req.baseUrl carries the mount prefix when embedded in a host app.
+  app.get("/", (req, res) => res.redirect(`${req.baseUrl}/dashboard`));
   return app;
+}
+
+/** Connect to the targets and begin the analysis loop (no HTTP server). */
+async function startEngine() {
+  for (const t of targets) await t.adapter.ensurePrerequisites(t);
+  startScheduler();
+  runAnalysisCycle(); // immediate first cycle, like the Python edition
+}
+
+/** Embed the optimizer in a host Express app, sharing its port:
+ *    const dbopt = require("dbopt-engine");
+ *    await dbopt.attach(app);                      // routes under /dbopt
+ *    await dbopt.attach(app, { prefix: "/opt" });  // or a custom prefix
+ *  Dashboard: <prefix>/dashboard · Topology: <prefix>/topology */
+async function attach(app, { prefix = "/dbopt" } = {}) {
+  const sub = createApp();
+  app.use(prefix, sub);
+  await startEngine();
+  return sub;
 }
 
 async function start() {
@@ -46,10 +66,8 @@ async function start() {
     console.log(`  dashboard: http://localhost:${settings.httpPort}/dashboard`);
     console.log(`  topology:  http://localhost:${settings.httpPort}/topology`);
   });
-  for (const t of targets) await t.adapter.ensurePrerequisites(t);
-  startScheduler();
-  runAnalysisCycle(); // immediate first cycle, like the Python edition
+  await startEngine();
   return app;
 }
 
-module.exports = { createApp, start };
+module.exports = { createApp, attach, startEngine, start };

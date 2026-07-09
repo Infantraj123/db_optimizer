@@ -24,7 +24,7 @@ the variables below (copy `.env.example` from the package as a template):
 ```bash
 # one database — or several, comma-separated (see "Multiple databases")
 DATABASE_URL=mysql://user:password@host:3306/mydb
-PORT=8000
+PORT=1305
 SCAN_INTERVAL_MINUTES=15
 MIN_ROWS_FOR_SEQ_SCAN_FLAG=1000
 MIN_IMPROVEMENT_PCT_TO_RECOMMEND=30
@@ -41,8 +41,8 @@ Then start it:
 
 ```bash
 dbopt
-# dashboard: http://localhost:8000/dashboard
-# topology:  http://localhost:8000/topology
+# dashboard: http://localhost:1305/dashboard
+# topology:  http://localhost:1305/topology
 ```
 
 Or per-project:
@@ -54,6 +54,34 @@ npx dbopt-engine
 ```
 
 If any variable is missing, startup fails with a list of what's not set.
+
+## Embed in your backend (share its port)
+
+Instead of running dbopt as a separate process on its own port, you can mount
+it inside an existing Express app — the same way `swagger-ui-express` serves
+docs on your API's port:
+
+```js
+const express = require("express");
+const dbopt = require("dbopt-engine");
+
+const app = express();
+// ... your own routes ...
+
+await dbopt.attach(app);                        // mounts under /dbopt
+// or: await dbopt.attach(app, { prefix: "/optimizer" });
+
+app.listen(4000);
+// dashboard: http://localhost:4000/dbopt/dashboard
+// topology:  http://localhost:4000/dbopt/topology
+```
+
+`attach()` mounts all routes and dashboards under the prefix, connects to the
+configured targets, and starts the analysis scheduler. Configuration still
+comes from environment variables / `.env` (`PORT` is ignored in this mode —
+the host app owns the port). For finer control, `createApp()` returns the bare
+Express app without starting the engine, and `startEngine()` starts the
+scheduler on its own.
 
 ## Connection strings
 
@@ -91,7 +119,7 @@ override the ones that have one — flags win).
 | Flag | Env var | Suggested value | Meaning |
 |---|---|---|---|
 | `--database-url` | `DATABASE_URL` | — | one or more comma-separated connection strings |
-| `--port` | `PORT` | 8000 | HTTP port for dashboard/API |
+| `--port` | `PORT` | 1305 | HTTP port for dashboard/API |
 | `--scan-interval` | `SCAN_INTERVAL_MINUTES` | 15 | minutes between analysis cycles |
 | `--auto-create` | `AUTO_CREATE_INDEXES` | true | create verified indexes automatically |
 | `--auto-drop` | `AUTO_DROP_UNUSED_INDEXES` | false | drop unused indexes automatically |

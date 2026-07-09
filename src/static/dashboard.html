@@ -366,7 +366,13 @@ for (const el of document.querySelectorAll(".info[data-tip]")) {
 // Every API call is scoped to the database picked in the header selector
 // (?db=<name>); without it the server uses its first configured target.
 const DB = new URLSearchParams(location.search).get("db");
-const withDb = (url) => DB ? url + (url.includes("?") ? "&" : "?") + "db=" + encodeURIComponent(DB) : url;
+// When the app is mounted inside a host server (e.g. at /dbopt), API calls
+// must carry that prefix; derive it from this page's own path.
+const BASE = location.pathname.replace(/\/(dashboard|topology)\/?$/, "");
+const withDb = (url) => {
+  const u = BASE + url;
+  return DB ? u + (u.includes("?") ? "&" : "?") + "db=" + encodeURIComponent(DB) : u;
+};
 async function getJSON(url) {
   const res = await fetch(withDb(url));
   if (!res.ok) throw new Error(url + " -> HTTP " + res.status);
@@ -375,8 +381,8 @@ async function getJSON(url) {
 
 async function initDbSelect() {
   try {
-    const ts = await getJSON("/targets");
     $("#topo-link").href = withDb("/topology");
+    const ts = await getJSON("/targets");
     if (ts.length < 2) return;
     const sel = $("#db-select");
     const current = DB || ts[0].name;

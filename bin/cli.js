@@ -2,7 +2,7 @@
 "use strict";
 
 /* Simple CLI: flags map onto env vars before config loads.
- *   dbopt --database-url mysql://u:p@host:3306/db --port 8000
+ *   dbopt --database-url mysql://u:p@host:3306/db --port 1305
  */
 const args = process.argv.slice(2);
 const FLAG_TO_ENV = {
@@ -26,7 +26,7 @@ Usage:
 Options:
   --database-url <urls>   postgres:// | mysql:// | sqlserver:// connection string;
                           comma-separate several to watch multiple databases
-  --port <n>              HTTP port for dashboard/API (default 8000)
+  --port <n>              HTTP port for dashboard/API (default 1305)
   --scan-interval <min>   analysis cycle interval in minutes (default 15)
   --auto-create <bool>    create verified indexes automatically (default true)
   --auto-drop <bool>      drop unused indexes automatically (default false)

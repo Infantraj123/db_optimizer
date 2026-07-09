@@ -363,7 +363,13 @@ const history = [];
 // Every API call is scoped to the database picked in the toolbar selector
 // (?db=<name>); without it the server uses its first configured target.
 const DB = new URLSearchParams(location.search).get("db");
-const withDb = (url) => DB ? url + (url.includes("?") ? "&" : "?") + "db=" + encodeURIComponent(DB) : url;
+// When the app is mounted inside a host server (e.g. at /dbopt), API calls
+// must carry that prefix; derive it from this page's own path.
+const BASE = location.pathname.replace(/\/(dashboard|topology)\/?$/, "");
+const withDb = (url) => {
+  const u = BASE + url;
+  return DB ? u + (u.includes("?") ? "&" : "?") + "db=" + encodeURIComponent(DB) : u;
+};
 async function getJSON(url, opts) {
   const r = await fetch(withDb(url), opts);
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.status);
@@ -372,8 +378,8 @@ async function getJSON(url, opts) {
 
 async function initDbSelect() {
   try {
-    const ts = await getJSON("/targets");
     $("#dash-link").href = withDb("/dashboard");
+    const ts = await getJSON("/targets");
     if (ts.length < 2) return;
     const sel = $("#db-select");
     const current = DB || ts[0].name;
